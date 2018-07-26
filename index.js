@@ -38,8 +38,15 @@ const post = async (endpoint, data, headers={}) => {
     })
 }
 
+const request = async (method, endpoint, data={}, headers={}) => {
+    headers.Authorization = `Bot ${token}`
+    return await sa(method, API_ROOT+endpoint).send(data).set(headers).catch(e => {
+        throw e;
+    })
+}
+
 const createMessage = async (channel, msg) => {
-    post(`channels/${channel}/messages`, typeof msg === 'string' ? {content: msg} : msg)
+    return await post(`channels/${channel}/messages`, typeof msg === 'string' ? {content: msg} : msg)
 }
 
 async function run() {
@@ -65,10 +72,10 @@ async function run() {
         let data = JSON.parse(m.data);
         let print = false;
         sequence = data.s; // follow the sequence !!!
-        d = data.d;
+        parsed = data.d;
         if (data.op === 10) {
             log.debug('obtained an HELLO, setting up...!')
-            log.debug('the heartbeat interval is '+data.d.heartbeat_interval)
+            log.debug('the heartbeat interval is '+parsed.heartbeat_interval)
             setInterval(() => {
                 log.debug('sending heartbeat');
                 send({
@@ -79,7 +86,7 @@ async function run() {
                     log.crit('hey, the gateway didnt respond in time! it\'s probably dead so i\'ll dc, bye');
                     sock.close(2000); // hey, they just said non-2000
                 }, 5000)
-            }, data.d.heartbeat_interval)
+            }, parsed.heartbeat_interval)
             log.debug('sending IDENTIFY...!');
             send({
                 op: 2,
@@ -114,19 +121,34 @@ async function run() {
             })
         } else if (data.op === 0) {
             if (data.t === 'READY') {
-                log.debug(`WE READY BOIS, logged in as ${d.user.username}#${d.user.discriminator}`);
+                log.debug(`WE READY BOIS, logged in as ${parsed.user.username}#${parsed.user.discriminator}`);
             }
 
             if (data.t === 'MESSAGE_CREATE') {
-                if (d.content === '--hello!') {
-                    createMessage(d.channel_id, 'hello, world!')
-                } else if (d.content === '--embedtest') {
-                    createMessage(d.channel_id, {
+                if (parsed === '--hello!') {
+                    createMessage(parsed.channel_id, 'hello, world!')
+                } else if (parsed === '--embedtest') {
+                    createMessage(parsed.channel_id, {
                         embed: {
                             title: 'Hello, world!',
                             description: 'Hi from rylib.'
                         }
                     })
+                } else if (parsed.content.startsWith('--eval') && parsed.author.id === '190544080164487168') {
+                    (async function() {
+                        let code = parsed.content.split(' ').slice(1).join(' ');
+                        log.info('Running eval with ' + code);
+                        let res = '-No output-';
+                        let channel = await get('channels/'+data.d.channel_id).catch(e => {});
+                        let guild = await get('guilds/'+channel.guild_id).catch(e => {});
+                        try {
+                            res = eval(code)
+                        } catch(e) {
+                            res = e;
+                        }
+                        console.log(data.d.channel_id);
+                        createMessage(data.d.channel_id, '```'+(res || '-No output-')+'```').catch(e => {})
+                    })()
                 }
             }
 
