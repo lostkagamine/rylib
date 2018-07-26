@@ -1,0 +1,16 @@
+{
+  "name": "jscord",
+  "version": "1.0.0",
+  "description": "aaaaaaa",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ry00001",
+  "license": "WTFPL",
+  "dependencies": {
+    "superagent": "^3.8.3",
+    "turbocolor": "^2.4.1",
+    "ws": "^6.0.0"
+  }
+}
